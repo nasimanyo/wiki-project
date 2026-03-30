@@ -44,6 +44,7 @@ function ArticleCard({ article }: { article: Article }) {
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => window.location.href = `/articles/${article.id}`}
       style={{
         background: "#fff",
         border: `1.5px solid ${hovered ? "#5b9bd5" : "#e8edf2"}`,
@@ -122,6 +123,36 @@ export default function TopPage() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("すべて");
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    getUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleLogin = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) console.error(error)
+  }
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut()
+    if (error) console.error(error)
+  }
 
   useEffect(() => {
     const fetchArticles = async () => {
@@ -219,21 +250,45 @@ export default function TopPage() {
           </div>
 
           <nav style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-            <button style={{
-              background: "transparent", border: "1.5px solid #e8edf2",
-              color: "#6b7280", borderRadius: "8px", padding: "7px 16px",
-              fontSize: "13px", cursor: "pointer", fontFamily: "'Noto Sans JP', sans-serif",
-              display: "flex", alignItems: "center", gap: "6px",
-            }}>
-              <span style={{ fontSize: "14px" }}>💬</span> Discord でログイン
-            </button>
-            <button style={{
-              background: "#3b6ecc", border: "none", color: "#fff",
-              borderRadius: "8px", padding: "7px 18px", fontSize: "13px",
-              cursor: "pointer", fontWeight: 700, fontFamily: "'Noto Sans JP', sans-serif",
-            }}>
-              + 記事を書く
-            </button>
+            {user ? (
+              <>
+                <span style={{ fontSize: "13px", color: "#6b7280" }}>
+                  {user.user_metadata?.full_name || user.user_metadata?.name}
+                </span>
+                <button style={{
+                  background: "transparent", border: "1.5px solid #e8edf2",
+                  color: "#6b7280", borderRadius: "8px", padding: "7px 16px",
+                  fontSize: "13px", cursor: "pointer", fontFamily: "'Noto Sans JP', sans-serif",
+                }} onClick={handleLogout}>
+                  ログアウト
+                </button>
+                <button style={{
+                  background: "#3b6ecc", border: "none", color: "#fff",
+                  borderRadius: "8px", padding: "7px 18px", fontSize: "13px",
+                  cursor: "pointer", fontWeight: 700, fontFamily: "'Noto Sans JP', sans-serif",
+                }} onClick={() => window.location.href = '/editor'}>
+                  + 記事を書く
+                </button>
+              </>
+            ) : (
+              <>
+                <button style={{
+                  background: "transparent", border: "1.5px solid #e8edf2",
+                  color: "#6b7280", borderRadius: "8px", padding: "7px 16px",
+                  fontSize: "13px", cursor: "pointer", fontFamily: "'Noto Sans JP', sans-serif",
+                  display: "flex", alignItems: "center", gap: "6px",
+                }} onClick={handleLogin}>
+                  <span style={{ fontSize: "14px" }}>💬</span> Discord でログイン
+                </button>
+                <button style={{
+                  background: "#3b6ecc", border: "none", color: "#fff",
+                  borderRadius: "8px", padding: "7px 18px", fontSize: "13px",
+                  cursor: "pointer", fontWeight: 700, fontFamily: "'Noto Sans JP', sans-serif",
+                }} onClick={handleLogin}>
+                  + 記事を書く
+                </button>
+              </>
+            )}
           </nav>
         </div>
       </header>
